@@ -27,14 +27,16 @@ document.getElementById('canvas-container').appendChild(renderer.domElement);
 // ============ ORBIT CONTROLS ============
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-controls.dampingFactor = 0.08;
+controls.dampingFactor = 0.05;
 controls.target.set(0, 0, 0);
-controls.minDistance = 8;
-controls.maxDistance = 140;
-controls.maxPolarAngle = Math.PI * 0.82;
-controls.minPolarAngle = Math.PI * 0.05;
+controls.minDistance = 6;
+controls.maxDistance = 160;
+controls.maxPolarAngle = Math.PI * 0.80;
+controls.minPolarAngle = Math.PI * 0.08;
 controls.autoRotate = true;
-controls.autoRotateSpeed = 0.15;
+controls.autoRotateSpeed = 0.08;   // Muy suave
+controls.zoomSpeed = 0.8;
+controls.rotateSpeed = 0.6;
 controls.update();
 
 // ============ LUCES ============
@@ -435,21 +437,21 @@ scene.add(glowMesh2);
 
 // ============ DATOS DE PLANETAS ============
 const planetConfigs = [
-    { name: 'Mercurio', radius: 0.5,  orbitRadius: 7,  speed: 3.5, texture: mercuryTexture,
+    { name: 'Mercurio', radius: 0.5,  orbitRadius: 7,  speed: 0.40, texture: mercuryTexture,
         frase: 'La velocidad no lo es todo, pero la perseverancia sí. Cada línea de código que escribes te acerca más a tu meta. ¡No te detengas!' },
-    { name: 'Venus',    radius: 0.85, orbitRadius: 10.5, speed: 2.5, texture: venusTexture,
+    { name: 'Venus',    radius: 0.85, orbitRadius: 10.5, speed: 0.28, texture: venusTexture,
         frase: 'Brilla con intensidad propia. La ingeniería de software es el arte de crear soluciones que iluminan el mundo. Tu código puede cambiar vidas.' },
-    { name: 'Tierra',   radius: 0.9,  orbitRadius: 14.5, speed: 2.0, texture: earthTexture,
+    { name: 'Tierra',   radius: 0.9,  orbitRadius: 14.5, speed: 0.20, texture: earthTexture,
         frase: 'Este es tu hogar, pero tu mente puede crear universos enteros. Cada proyecto de software es un nuevo mundo que nace de tu imaginación y esfuerzo.' },
-    { name: 'Marte',    radius: 0.62, orbitRadius: 19,  speed: 1.5, texture: marsTexture,
+    { name: 'Marte',    radius: 0.62, orbitRadius: 19,  speed: 0.15, texture: marsTexture,
         frase: 'La conquista de nuevos territorios comienza con un solo commit. Atrévete a explorar más allá de tu zona de confort. El futuro es de los valientes.' },
-    { name: 'Júpiter',  radius: 2.6,  orbitRadius: 27,  speed: 0.9, texture: jupiterTexture,
+    { name: 'Júpiter',  radius: 2.6,  orbitRadius: 27,  speed: 0.09, texture: jupiterTexture,
         frase: 'Sé gigante en tus aspiraciones. La grandeza en el desarrollo de software se construye con paciencia, disciplina y un aprendizaje constante.' },
-    { name: 'Saturno',  radius: 2.0,  orbitRadius: 34,  speed: 0.7, texture: saturnTexture,
+    { name: 'Saturno',  radius: 2.0,  orbitRadius: 34,  speed: 0.065, texture: saturnTexture,
         frase: 'Los anillos del éxito se forman con dedicación constante. Cada capa de conocimiento que adquieres te hace más valioso. ¡Sigue sumando!', hasRings: true },
-    { name: 'Urano',    radius: 1.4,  orbitRadius: 40,  speed: 0.5, texture: uranusTexture,
+    { name: 'Urano',    radius: 1.4,  orbitRadius: 40,  speed: 0.045, texture: uranusTexture,
         frase: 'Piensa diferente, gira distinto. La innovación en software nace de perspectivas únicas. No temas romper los esquemas establecidos.' },
-    { name: 'Neptuno',  radius: 1.3,  orbitRadius: 46,  speed: 0.4, texture: neptuneTexture,
+    { name: 'Neptuno',  radius: 1.3,  orbitRadius: 46,  speed: 0.030, texture: neptuneTexture,
         frase: 'En las profundidades del conocimiento hay tesoros que solo la disciplina descubre. Cada desafío técnico superado te acerca a la maestría.' }
 ];
 
@@ -525,8 +527,28 @@ const mouse = new THREE.Vector2();
 
 function getPlanetIntersections() {
     raycaster.setFromCamera(mouse, camera);
+    raycaster.params.Points = { threshold: 0.1 };
+    // Usar esferas de colisión ligeramente más grandes para mejor UX
     const meshes = planets.map(p => p.mesh);
-    return raycaster.intersectObjects(meshes);
+    const hits = raycaster.intersectObjects(meshes);
+    if (hits.length > 0) return hits;
+
+    // Segunda pasada: hitboxes expandidas para planetas pequeños
+    const expandedHits = [];
+    planets.forEach(planet => {
+        const planetWorldPos = new THREE.Vector3();
+        planet.mesh.getWorldPosition(planetWorldPos);
+        const r = planet.mesh.geometry.parameters.radius;
+        const hitRadius = Math.max(r * 2.2, 1.2);
+        const ray = raycaster.ray;
+        const distToCenter = ray.distanceToPoint(planetWorldPos);
+        if (distToCenter < hitRadius) {
+            const distToCamera = camera.position.distanceTo(planetWorldPos);
+            expandedHits.push({ object: planet.mesh, distance: distToCamera });
+        }
+    });
+    expandedHits.sort((a, b) => a.distance - b.distance);
+    return expandedHits;
 }
 
 // ============ ESTADO DE ZOOM ============
@@ -587,9 +609,12 @@ function zoomOut() {
 function getZoomTargetPosition(planet) {
     const planetWorldPos = new THREE.Vector3();
     planet.mesh.getWorldPosition(planetWorldPos);
-    const dirToPlanet = planetWorldPos.clone().sub(camera.position).normalize();
-    const distance = planet.mesh.geometry.parameters.radius * 3.5 + 1.5;
-    const targetPos = planetWorldPos.clone().add(dirToPlanet.multiplyScalar(distance));
+    // Dirección desde el sol hacia el planeta, a altura levemente elevada
+    const dirFromSun = planetWorldPos.clone().normalize();
+    dirFromSun.y += 0.35;
+    dirFromSun.normalize();
+    const distance = planet.mesh.geometry.parameters.radius * 4.5 + 2.5;
+    const targetPos = planetWorldPos.clone().add(dirFromSun.multiplyScalar(distance));
     return { position: targetPos, lookAt: planetWorldPos };
 }
 
@@ -709,12 +734,12 @@ function animate() {
     } else if (appState === 'ZOOMING_OUT') {
         const t = Math.min((elapsed - zoomStartTime) / ZOOM_DURATION, 1.0);
         const easedT = easeInOutCubic(t);
-        const zoomTarget = targetPlanet ? getZoomTargetPosition(targetPlanet) : null;
-        const startPos = zoomTarget ? zoomTarget.position : camera.position.clone();
-        const startTarget = zoomTarget ? zoomTarget.lookAt : controls.target.clone();
-        camera.position.lerpVectors(startPos, savedCameraPosition, easedT);
-        controls.target.lerpVectors(startTarget, savedCameraTarget, easedT);
+        // Partir desde posición actual de cámara (no la del planeta)
+        camera.position.lerp(savedCameraPosition, easedT * 0.12 + 0.02);
+        controls.target.lerp(savedCameraTarget, easedT * 0.12 + 0.02);
         if (t >= 1.0) {
+            camera.position.copy(savedCameraPosition);
+            controls.target.copy(savedCameraTarget);
             appState = 'IDLE';
             targetPlanet = null;
             controls.enabled = true;
@@ -723,13 +748,14 @@ function animate() {
     } else if (appState === 'VIEWING' && targetPlanet) {
         const planetWorldPos = new THREE.Vector3();
         targetPlanet.mesh.getWorldPosition(planetWorldPos);
-        controls.target.copy(planetWorldPos);
-        const dirToPlanet = planetWorldPos.clone().sub(camera.position).normalize();
-        const desiredDistance = targetPlanet.mesh.geometry.parameters.radius * 3.5 + 1.5;
-        const currentDistance = camera.position.distanceTo(planetWorldPos);
-        if (Math.abs(currentDistance - desiredDistance) > 0.1) {
-            camera.position.add(dirToPlanet.multiplyScalar((desiredDistance - currentDistance) * 0.5));
-        }
+        // Seguir suavemente al planeta mientras orbita
+        controls.target.lerp(planetWorldPos, 0.08);
+        const dirFromSun = planetWorldPos.clone().normalize();
+        dirFromSun.y += 0.35;
+        dirFromSun.normalize();
+        const desiredDistance = targetPlanet.mesh.geometry.parameters.radius * 4.5 + 2.5;
+        const desiredPos = planetWorldPos.clone().add(dirFromSun.multiplyScalar(desiredDistance));
+        camera.position.lerp(desiredPos, 0.06);
     }
 
     if (appState === 'IDLE' || appState === 'ZOOMING_OUT') {
