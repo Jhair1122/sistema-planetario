@@ -12,7 +12,7 @@ const camera = new THREE.PerspectiveCamera(
     0.1,
     1000
 );
-camera.position.set(0, 28, 55);
+camera.position.set(0, 18, 62);
 camera.lookAt(0, 0, 0);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -30,28 +30,35 @@ controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 controls.target.set(0, 0, 0);
 controls.minDistance = 8;
-controls.maxDistance = 120;
-controls.maxPolarAngle = Math.PI * 0.85;
+controls.maxDistance = 140;
+controls.maxPolarAngle = Math.PI * 0.82;
+controls.minPolarAngle = Math.PI * 0.05;
 controls.autoRotate = true;
 controls.autoRotateSpeed = 0.15;
 controls.update();
 
 // ============ LUCES ============
-const ambientLight = new THREE.AmbientLight(0x111133, 1.5);
+const ambientLight = new THREE.AmbientLight(0x223366, 3.5);
 scene.add(ambientLight);
 
-const sunLight = new THREE.PointLight(0xffffff, 80, 200, 0.5);
+// Luz principal del sol — más intensa y con mayor alcance
+const sunLight = new THREE.PointLight(0xfff4e0, 600, 300, 1.2);
 sunLight.position.set(0, 0, 0);
 sunLight.castShadow = true;
-sunLight.shadow.mapSize.width = 1024;
-sunLight.shadow.mapSize.height = 1024;
+sunLight.shadow.mapSize.width = 2048;
+sunLight.shadow.mapSize.height = 2048;
 sunLight.shadow.camera.near = 0.5;
-sunLight.shadow.camera.far = 200;
+sunLight.shadow.camera.far = 300;
 scene.add(sunLight);
 
-const sunLight2 = new THREE.PointLight(0xffaa44, 30, 150, 0.6);
+const sunLight2 = new THREE.PointLight(0xff9944, 200, 200, 1.4);
 sunLight2.position.set(0, 0, 0);
 scene.add(sunLight2);
+
+// Luz de relleno tenue azulada para el lado oscuro
+const fillLight = new THREE.DirectionalLight(0x334488, 0.4);
+fillLight.position.set(-50, 20, -50);
+scene.add(fillLight);
 
 // ============ ESTRELLAS ============
 function createStars() {
@@ -428,21 +435,21 @@ scene.add(glowMesh2);
 
 // ============ DATOS DE PLANETAS ============
 const planetConfigs = [
-    { name: 'Mercurio', radius: 0.45, orbitRadius: 7, speed: 3.5, texture: mercuryTexture,
+    { name: 'Mercurio', radius: 0.5,  orbitRadius: 7,  speed: 3.5, texture: mercuryTexture,
         frase: 'La velocidad no lo es todo, pero la perseverancia sí. Cada línea de código que escribes te acerca más a tu meta. ¡No te detengas!' },
-    { name: 'Venus', radius: 0.75, orbitRadius: 10, speed: 2.5, texture: venusTexture,
+    { name: 'Venus',    radius: 0.85, orbitRadius: 10.5, speed: 2.5, texture: venusTexture,
         frase: 'Brilla con intensidad propia. La ingeniería de software es el arte de crear soluciones que iluminan el mundo. Tu código puede cambiar vidas.' },
-    { name: 'Tierra', radius: 0.8, orbitRadius: 14, speed: 2.0, texture: earthTexture,
+    { name: 'Tierra',   radius: 0.9,  orbitRadius: 14.5, speed: 2.0, texture: earthTexture,
         frase: 'Este es tu hogar, pero tu mente puede crear universos enteros. Cada proyecto de software es un nuevo mundo que nace de tu imaginación y esfuerzo.' },
-    { name: 'Marte', radius: 0.55, orbitRadius: 18, speed: 1.5, texture: marsTexture,
+    { name: 'Marte',    radius: 0.62, orbitRadius: 19,  speed: 1.5, texture: marsTexture,
         frase: 'La conquista de nuevos territorios comienza con un solo commit. Atrévete a explorar más allá de tu zona de confort. El futuro es de los valientes.' },
-    { name: 'Júpiter', radius: 2.2, orbitRadius: 24, speed: 0.9, texture: jupiterTexture,
+    { name: 'Júpiter',  radius: 2.6,  orbitRadius: 27,  speed: 0.9, texture: jupiterTexture,
         frase: 'Sé gigante en tus aspiraciones. La grandeza en el desarrollo de software se construye con paciencia, disciplina y un aprendizaje constante.' },
-    { name: 'Saturno', radius: 1.7, orbitRadius: 30, speed: 0.7, texture: saturnTexture,
+    { name: 'Saturno',  radius: 2.0,  orbitRadius: 34,  speed: 0.7, texture: saturnTexture,
         frase: 'Los anillos del éxito se forman con dedicación constante. Cada capa de conocimiento que adquieres te hace más valioso. ¡Sigue sumando!', hasRings: true },
-    { name: 'Urano', radius: 1.2, orbitRadius: 36, speed: 0.5, texture: uranusTexture,
+    { name: 'Urano',    radius: 1.4,  orbitRadius: 40,  speed: 0.5, texture: uranusTexture,
         frase: 'Piensa diferente, gira distinto. La innovación en software nace de perspectivas únicas. No temas romper los esquemas establecidos.' },
-    { name: 'Neptuno', radius: 1.1, orbitRadius: 41, speed: 0.4, texture: neptuneTexture,
+    { name: 'Neptuno',  radius: 1.3,  orbitRadius: 46,  speed: 0.4, texture: neptuneTexture,
         frase: 'En las profundidades del conocimiento hay tesoros que solo la disciplina descubre. Cada desafío técnico superado te acerca a la maestría.' }
 ];
 
@@ -452,13 +459,17 @@ const planets = [];
 planetConfigs.forEach((config) => {
     const orbitGroup = new THREE.Group();
     orbitGroup.rotation.y = Math.random() * Math.PI * 2;
+    // Leve inclinación orbital individual para dar profundidad 3D
+    orbitGroup.rotation.x = (Math.random() - 0.5) * 0.08;
+    orbitGroup.rotation.z = (Math.random() - 0.5) * 0.05;
     scene.add(orbitGroup);
 
     const planetGeometry = new THREE.SphereGeometry(config.radius, 64, 64);
-    const planetMaterial = new THREE.MeshStandardMaterial({
+      const planetMaterial = new THREE.MeshStandardMaterial({
         map: config.texture,
-        roughness: 0.6,
-        metalness: 0.1,
+        roughness: 0.75,
+        metalness: 0.05,
+        envMapIntensity: 0.3,
     });
     const planetMesh = new THREE.Mesh(planetGeometry, planetMaterial);
     planetMesh.position.x = config.orbitRadius;
@@ -490,9 +501,9 @@ planetConfigs.forEach((config) => {
     const orbitGeometry = new THREE.BufferGeometry().setFromPoints(
         orbitPoints.map(p => new THREE.Vector3(p.x, 0, p.y))
     );
-    const orbitLine = new THREE.Line(
+     const orbitLine = new THREE.Line(
         orbitGeometry,
-        new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.15, depthTest: true })
+        new THREE.LineBasicMaterial({ color: 0x4466aa, transparent: true, opacity: 0.3, depthTest: true })
     );
     scene.add(orbitLine);
 
