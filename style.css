@@ -53,17 +53,25 @@ body.pointer-cursor:active {
 }
 
 .overlay-content {
-    background: rgba(20, 20, 40, 0.85);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 24px;
-    padding: 40px 50px;
-    max-width: 550px;
+    background: linear-gradient(135deg, rgba(10,10,30,0.92), rgba(20,20,50,0.88));
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 28px;
+    padding: 48px 56px;
+    max-width: 580px;
     width: 90%;
     text-align: center;
     color: #fff;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 80px rgba(100, 100, 255, 0.15);
-    transform: translateY(20px);
-    transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow:
+        0 24px 80px rgba(0, 0, 0, 0.6),
+        0 0 100px rgba(80, 120, 255, 0.12),
+        inset 0 1px 0 rgba(255,255,255,0.08);
+    transform: translateY(30px) scale(0.97);
+    transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+                opacity 0.4s ease;
+}
+
+#planet-overlay.visible .overlay-content {
+    transform: translateY(0) scale(1);
 }
 
 #planet-overlay.visible .overlay-content {
